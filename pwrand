@@ -1,0 +1,142 @@
+#!/usr/bin/perl
+#                                                                              #
+# pwrand -  random  passwords generator based on  entropy collected from       #
+#           pseudo-random device /dev/urandom                                  #
+#                                                                              #
+# Copyright (C)  2012-2015   Bartosz Kozak                                     #
+#                                                                              #
+# This program is free software: you can redistribute it and/or modify         #
+# it under the terms of the GNU General Public License as published by         #
+# the Free Software Foundation, either version 2 of the License, or            #
+# (at your option) any later version.                                          #
+#                                                                              #
+# This program is distributed in the hope that it will be useful,              #
+# but WITHOUT ANY WARRANTY; without even the implied warranty of               #
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                #
+# GNU General Public License for more details.                                 #
+#                                                                              #
+# You should have received a copy of the GNU General Public License            #
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.        #
+#                                                                              #
+#                                                                              #
+#                                                                              #
+# ---------------------------------------------------------------------------- #
+# 2012/01/02  written by:  Bartosz Kozak <admin@bkzk.net>                      #
+#******************************************************************************#
+
+use strict;
+
+my $RANDEV  = '/dev/urandom';
+my $PWL     = '12';
+my $PEX     = '10';
+my $entropy = '';
+my $ptentr  = '';
+my ($nbyte ,$mbyte, $eno);
+my ($upper, $lower, $digit) = (0, 0, 0);
+my ($minus, $uline, $wspace, $spchar) = (0, 0, 0, 0);
+my $alpha = 1;
+my $quiet = 0;
+
+# ---------------------------------------------------------------------------- #
+
+my $VERB=((grep/^-v$/,@ARGV)?1:0); unless ( $VERB ){
+	open *DEVNULL, ">", "/dev/null" or die "$0: open: $!"; 
+}
+
+if( grep /-h|--help|h/, @ARGV ){
+print <<__HELP__
+Usage: 
+ -u     - include uppercase letters
+ -l     - include lowercase letters
+ -d     - include digits
+ -w     - include white spaces 
+ -n     - include underline 
+ -m     - include minus sign
+ -s     - include other special characters
+ -a     - equivalent for -uld, all alphanumeric characters (default) 
+ -A     - include all printable characters 
+ -P     - the number of displayed examples (default $PWL)
+ -E     - show filtered entropy 
+ -x N   - passwords length (default N=12)
+ -v     - be more verbose
+ -q     - be quiet, less verbose
+__HELP__
+; exit (1);
+}
+
+my ($i) = grep { $ARGV[$_] =~ /x|X/ } 0..$#ARGV;
+if (defined $i) {
+   if (defined $ARGV[$i+1]) {
+      $PWL = $ARGV[$i+1];   
+   } else { print "Missing value -x !\n";  }
+}
+
+my ($j) = grep { $ARGV[$_] =~ /P|p/ } 0..$#ARGV;
+if (defined $j) {
+   if (defined $ARGV[$j+1]) {
+      $PEX = $ARGV[$j+1];   
+   } else { print "Missing value for -P !\n";  }
+}
+
+$upper  = 1 if (grep /u/, @ARGV);
+$lower  = 1 if (grep /l/, @ARGV);
+$digit  = 1 if (grep /d/, @ARGV);
+$wspace = 1 if (grep /w/, @ARGV);
+$uline  = 1 if (grep /n/, @ARGV);
+$minus  = 1 if (grep /m/, @ARGV);
+$spchar = 1 if (grep /s/, @ARGV);
+$alpha  = 0 if (grep /u|l|d|s/, @ARGV);
+$alpha  = 1 if (grep /a/, @ARGV);
+$quiet  = 1 if (grep /q/, @ARGV);
+
+($upper,$lower,$digit) = (1,1,1) if $alpha == 1;
+($alpha, $minus, $uline, $wspace, $spchar) = (1, 1, 1, 1, 1) if (grep /A/, @ARGV);
+
+print {$VERB?*STDOUT:*DEVNULL} "> Password character groups in use:\n\n";
+print {$VERB?*STDOUT:*DEVNULL} "  Uppercase       [ ".(($upper)?"+":"-")." ]\n".
+      "  Lowercase       [ ".(($lower)?"+":"-")." ]\n".
+		"  Numbers         [ ".(($digit)?"+":"-")." ]\n".
+		"  Minus           [ ".(($minus)?"+":"-")." ]\n".
+		"  Underline       [ ".(($uline)?"+":"-")." ]\n".
+		"  White Spaces    [ ".(($wspace)?"+":"-")." ]\n".
+		"  Special Char.   [ ".(($spchar)?"+":"-")." ]\n".
+		"\n";
+
+# collect some entropy ------------------------------------------------------ #
+
+open DEVRANDOM, $RANDEV or die "$0: open: $!";  
+while (($nbyte = read DEVRANDOM, $entropy, 1) != 0) {
+   $entropy =~ s/[^[:print:]]//g;
+	$ptentr .= $entropy; 
+   $eno = length($ptentr);
+	$mbyte+=$nbyte;
+   last if $eno eq 1000*$PWL;
+}
+close (DEVRANDOM);
+print {$VERB?*STDOUT:*DEVNULL} "> Entropy: $eno chars - after reading: $mbyte bytes \n";
+
+# filter the collected entropy ---------------------------------------------- #
+
+$ptentr =~ s/[~`!@#\$\%^&*()+=,.<>{}\]\[\'\"\\\/:;?|]//g if $spchar == 0;
+$ptentr =~ s/\s//g    if $wspace == 0;
+$ptentr =~ s/_//g     if $uline  == 0;
+$ptentr =~ s/-//g     if $minus  == 0;
+$ptentr =~ s/\d//g    if $digit == 0;
+$ptentr =~ s/[a-z]//g if $lower == 0;
+$ptentr =~ s/[A-Z]//g if $upper == 0;
+
+# show entropy /-E/
+print "Entropy:\n$ptentr\n\n" if (grep /-E/,@ARGV);
+print {$VERB?*STDOUT:*DEVNULL} "> after filtering: ".(length($ptentr))." chars\n\n";
+
+# print results
+
+print "Random generated $PWL-char length passwords\n\n" if ! $quiet;
+while ($PEX--) {
+   for (my $i = 0; $i < $PWL; $i++){
+     print (substr($ptentr, rand(length($ptentr))-1 , 1) );
+   }
+	print $/;
+}
+#print $/;
+
