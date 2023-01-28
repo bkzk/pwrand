@@ -1,6 +1,6 @@
 # pwrand
 
-Simple pseudo-random string generator based on entropy gathered from /dev/(u)random device. Using /dev/urandom as a source of entropy is default. If you feel really paranoiac you can always switch to /dev/random which has more conservative entropy calculation. 
+Simple pseudo-random string generator based on entropy gathered from /dev/(u)random device. Using /dev/urandom as a source of entropy is default. If you feel paranoiac you can always switch to /dev/random which has a more conservative entropy calculation. 
 
 As a curiosity. If you are wondering how many bits of entropy is already gathered by your system, look into: /proc/sys/kernel/random/entropy_avail.
 
@@ -35,7 +35,7 @@ Clone it and move to your globally available paths or just use it.
 
 #### Examples
 
-By default script returns ten 12-char length string consisting of big and small letters and numbers. Use some switch to change length, number of lines or type of characters.
+By default, the script returns ten 12-char length strings consisting of upper and lower-case letters and numbers. Use some switches to change the length, number of lines, or type of characters.
 
     $ pwrand 
     Random generated 12-char length passwords
